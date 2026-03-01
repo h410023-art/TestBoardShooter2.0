@@ -12,6 +12,7 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import static edu.wpi.first.units.Units.Amps;
 import static edu.wpi.first.units.Units.RPM;
+import static edu.wpi.first.units.Units.Rotations;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.units.Units.Volts;
 
@@ -25,12 +26,12 @@ import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.configs.VoltageConfigs;
 
 public class Robot extends TimedRobot {
-  private final TalonFX motorLF = new TalonFX(30);
-  private final TalonFX motorLB = new TalonFX(31);
-  private final TalonFX motorRF = new TalonFX(32);
-  private final TalonFX motorRB = new TalonFX(33);
-  private final TalonFX motorLifting = new TalonFX(41);
-  private final TalonFX motorConveyor = new TalonFX(42);
+  private final TalonFX motorLF = new TalonFX(23);
+  private final TalonFX motorLB = new TalonFX(24);
+  private final TalonFX motorRF = new TalonFX(21);
+  private final TalonFX motorRB = new TalonFX(22);
+  private final TalonFX motorLifting = new TalonFX(25);
+  private final TalonFX motorConveyor = new TalonFX(26);
 
   private final VelocityVoltage velocityRequest = new VelocityVoltage(0.5).withSlot(0);
 
@@ -142,8 +143,6 @@ public class Robot extends TimedRobot {
     motorLiftingconfig.apply(new MotorOutputConfigs()
     .withNeutralMode(NeutralModeValue.Brake));
 
-    
-
     motorLiftingconfig.apply(new CurrentLimitsConfigs()
     .withStatorCurrentLimit(Amps.of(120))
     .withStatorCurrentLimitEnable(true)
@@ -181,7 +180,7 @@ public class Robot extends TimedRobot {
     motorLB.setControl(new Follower(motorLF.getDeviceID(),MotorAlignmentValue.Aligned));
     motorRF.setControl(new Follower(motorLF.getDeviceID(),MotorAlignmentValue.Opposed));
     motorRB.setControl(new Follower(motorLF.getDeviceID(),MotorAlignmentValue.Opposed));
-    motorConveyor.setControl(new Follower(motorLF.getDeviceID(),MotorAlignmentValue.Opposed));
+    motorConveyor.setControl(new Follower(motorLF.getDeviceID(),MotorAlignmentValue.Aligned));
   }
 
   @Override
@@ -194,28 +193,40 @@ public class Robot extends TimedRobot {
   public void autonomousPeriodic() {}
 
   @Override
-  public void teleopInit() {}
+  public void teleopInit() {
+    motorLifting.setPosition(Rotations.of(0));
+  }
 
   @Override
   public void teleopPeriodic() {
-    double targetRPM = 500;
+    double targetRPM = 300;
     double actualRPM = motorLF.getRotorVelocity().getValue().in(RPM);
-    double maxRPM = 500;
+    double maxRPM = 1000;
     double lifttargetRPM = -xbox.getLeftY()*maxRPM;
     double liftactualRPM = motorLifting.getRotorVelocity().getValue().in(RPM);
-    
+    double liftPosition = motorLifting.getRotorPosition().getValue().in(Rotations);
+    double maxPosition = 2;
+    double minPosition = 0;
+
     if(xbox.getAButton()){
       motorLF.setControl(velocityRequest.withVelocity(RPM.of(targetRPM)));
     }else{
       motorLF.stopMotor();
     }
 
-    motorLifting.setControl(velocityRequest.withVelocity(RPM.of(lifttargetRPM)));
-
+    if(liftPosition > maxPosition && lifttargetRPM > 0){
+      motorLifting.stopMotor();
+    }else if(liftPosition < minPosition && lifttargetRPM<0){
+      motorLifting.stopMotor();
+    }else{
+      motorLifting.setControl(velocityRequest.withVelocity(RPM.of(lifttargetRPM)));
+    }
+    
     SmartDashboard.putNumber("target", targetRPM);
     SmartDashboard.putNumber("actual", actualRPM);
     SmartDashboard.putNumber("lifttarget", lifttargetRPM);
     SmartDashboard.putNumber("liftactual", liftactualRPM);
+    SmartDashboard.putNumber("liftPosition", liftPosition);
   }
 
   @Override
